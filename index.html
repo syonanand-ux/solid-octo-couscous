@@ -1,1 +1,94 @@
-
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Star Dash</title>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600&family=DM+Sans:wght@400;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f5f0df;color:#24354c;font-family:'DM Sans',sans-serif;display:grid;place-items:center;min-height:100vh;padding:20px}
+main{width:min(100%,600px);text-align:center;animation:enter .5s}h1{font:600 42px 'Fredoka',sans-serif;margin:0 0 12px}
+p{font-size:14px}#stats{font-weight:700}canvas{width:100%;display:block;border:3px solid #24354c;border-radius:12px}
+button{font:700 14px 'DM Sans',sans-serif;background:#24354c;color:white;border:0;border-radius:7px;padding:12px;margin:5px;cursor:pointer;touch-action:none}
+button:hover{background:#3568ce}button:active{transform:scale(.94)}button:focus-visible{outline:3px solid #3568ce;outline-offset:3px}
+@keyframes enter{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@media(prefers-reduced-motion:reduce){main{animation:none}}
+</style>
+</head>
+<body>
+<main>
+<h1>Star Dash ★</h1>
+<p>Catch 5 stars per level. Avoid the red balls!</p>
+<p id="stats" aria-live="polite"></p>
+<canvas id="game" width="600" height="360" aria-label="Move the blue character to collect yellow stars and avoid red enemies."></canvas>
+<p>Move with arrow keys or the buttons below.</p>
+<div>
+<button data-key="ArrowLeft" aria-label="Left">←</button>
+<button data-key="ArrowUp" aria-label="Up">↑</button>
+<button data-key="ArrowDown" aria-label="Down">↓</button>
+<button data-key="ArrowRight" aria-label="Right">→</button>
+</div>
+<button id="start">Start game</button>
+</main>
+<script>
+const c=document.querySelector('canvas'),g=c.getContext('2d'),stats=document.querySelector('#stats');
+let level=1,score=0,lives=3,count=0,x=40,y=180,star={},keys={},playing=false,t=0,last=0,audio;
+function sound(f){
+try{
+audio ||= new(window.AudioContext||window.webkitAudioContext)();
+audio.resume();
+let o=audio.createOscillator(),v=audio.createGain();
+o.connect(v);v.connect(audio.destination);o.frequency.value=f;
+v.gain.setValueAtTime(.05,audio.currentTime);
+v.gain.exponentialRampToValueAtTime(.001,audio.currentTime+.12);
+o.start();o.stop(audio.currentTime+.12);
+}catch(e){}
+}
+function newStar(){star={x:90+Math.random()*450,y:30+Math.random()*300}}
+function reset(){x=40;y=180;lives=3;count=0;score=(level-1)*50;newStar()}
+document.querySelector('#start').onclick=()=>{
+level=1;reset();playing=true;sound(500);
+document.querySelector('#start').textContent='Restart';
+};
+onkeydown=e=>{if(e.key.startsWith('Arrow')){e.preventDefault();keys[e.key]=true}};
+onkeyup=e=>keys[e.key]=false;
+onblur=()=>keys={};
+document.querySelectorAll('[data-key]').forEach(b=>{
+b.onpointerdown=e=>{b.setPointerCapture(e.pointerId);keys[b.dataset.key]=true};
+b.onpointerup=b.onpointercancel=b.onlostpointercapture=()=>keys[b.dataset.key]=false;
+});
+function frame(now){
+let dt=Math.min((now-last)/1000,.03);last=now;
+g.fillStyle=['#dcecf8','#deedd5','#eee0f3'][level-1];g.fillRect(0,0,600,360);
+g.strokeStyle='#ffffff70';
+for(let i=0;i<600;i+=40){g.beginPath();g.moveTo(i,0);g.lineTo(i,360);g.stroke()}
+if(playing){
+t+=dt;
+x=Math.max(12,Math.min(588,x+((keys.ArrowRight?1:0)-(keys.ArrowLeft?1:0))*190*dt));
+y=Math.max(12,Math.min(348,y+((keys.ArrowDown?1:0)-(keys.ArrowUp?1:0))*190*dt));
+if(Math.hypot(x-star.x,y-star.y)<25){
+score+=10;count++;sound(800);newStar();
+if(count===5){
+if(level===3){playing=false;document.querySelector('#start').textContent='You win! Play again'}
+else{level++;reset()}
+}
+}
+}
+g.fillStyle='#df9f15';g.font='30px Fredoka';g.textAlign='center';g.fillText('★',star.x,star.y+10);
+for(let i=0;i<level;i++){
+let ex=210+i*130,ey=180+Math.sin(t*(1.4+i*.4)+i)*135;
+g.fillStyle='#e65650';g.beginPath();g.arc(ex,ey,15,0,7);g.fill();
+if(playing&&Math.hypot(x-ex,y-ey)<27){
+lives--;x=40;y=180;sound(140);
+if(lives===0)reset();
+}
+}
+g.fillStyle='#3568ce';g.fillRect(x-12,y-12,24,24);
+g.fillStyle='white';g.fillRect(x-7,y-5,4,5);g.fillRect(x+3,y-5,4,5);
+stats.textContent=`Level ${level}/3 · Score ${score} · Lives ${lives} · Stars ${count}/5`;
+requestAnimationFrame(frame);
+}
+reset();requestAnimationFrame(frame);
+</script>
+</body>
+</html>
